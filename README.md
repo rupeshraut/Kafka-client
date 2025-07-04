@@ -37,6 +37,16 @@ A comprehensive Java Gradle-based Kafka client library that supports synchronous
 - **Spring Boot Actuator Integration**: Enterprise-grade health indicators and endpoints
 - **Production-Ready Health Checks**: Multi-component health monitoring with detailed diagnostics
 
+### 🎯 Advanced Partitioning Strategies
+- **Producer Partitioning**: 8 built-in strategies (round-robin, key-hash, random, sticky, geographic, time-based, load-balanced, custom)
+- **Consumer Partitioning**: 4 advanced assignment strategies (datacenter-aware range, load-balanced, sticky, priority-based)
+- **Multi-Datacenter Awareness**: Geographic and locality-based partitioning for optimal data placement and reduced cross-DC traffic
+- **Performance Optimization**: Partitioning strategies optimized for high-throughput and low-latency scenarios
+- **Custom Partitioning**: Support for custom business logic partitioning strategies with metadata context
+- **Dynamic Partitioning**: Runtime strategy switching based on load conditions and datacenter health
+- **Partition-Aware Consumption**: Consumer strategies that understand datacenter topology and message locality
+- **Comprehensive Documentation**: Detailed partitioning strategy guide with performance characteristics and use cases
+
 ### 🔑 Advanced Kafka Features
 - **Schema Registry Integration**: Full support for Avro and JSON Schema
 - **Dead Letter Queue Handling**: Comprehensive error management and retry patterns
@@ -128,6 +138,57 @@ management.endpoints.web.exposure.include=health
 **Health Endpoint**: `GET /actuator/health/kafka-multidc`
 
 For complete documentation, see [Health Indicator Guide](HEALTH_INDICATOR.md).
+
+## 🎯 Partitioning Strategies Guide
+
+The library provides comprehensive partitioning strategies for both producers and consumers, optimized for multi-datacenter deployments:
+
+### Producer Partitioning Strategies
+
+The library includes 8 built-in producer partitioning strategies:
+
+- **ROUND_ROBIN**: Distributes messages evenly across all partitions
+- **KEY_HASH**: Uses consistent hashing of message keys (default Kafka behavior)
+- **RANDOM**: Randomly selects partitions for each message
+- **STICKY**: Batches messages to the same partition until batch is full
+- **GEOGRAPHIC**: Routes messages based on datacenter locality
+- **TIME_BASED**: Partitions messages based on timestamp ranges
+- **LOAD_BALANCED**: Dynamically selects partitions based on current load
+- **CUSTOM**: Allows implementation of custom business logic partitioning
+
+### Consumer Partitioning Strategies
+
+Advanced consumer assignment strategies for multi-datacenter awareness:
+
+- **DATACENTER_AWARE_RANGE**: Assigns partitions considering datacenter topology
+- **LOAD_BALANCED**: Balances partitions based on consumer processing capacity
+- **STICKY**: Minimizes partition reassignment during rebalancing
+- **PRIORITY_BASED**: Assigns partitions based on consumer priority levels
+
+### Usage Example
+
+```java
+import com.kafka.multidc.partitioning.ProducerPartitioningType;
+import com.kafka.multidc.partitioning.ProducerPartitioningManager;
+
+// Configure geographic partitioning for multi-datacenter optimization
+ProducerPartitioningManager partitioningManager = ProducerPartitioningManager.builder()
+    .strategy(ProducerPartitioningType.GEOGRAPHIC)
+    .datacenterAware(true)
+    .fallbackStrategy(ProducerPartitioningType.LOAD_BALANCED)
+    .build();
+
+ProducerConfig producerConfig = ProducerConfig.builder()
+    .partitioningManager(partitioningManager)
+    .build();
+
+// Use with client
+KafkaMultiDatacenterClient client = KafkaMultiDatacenterClientBuilder.create()
+    .configuration(configWithProducerConfig)
+    .build();
+```
+
+**For detailed documentation, see [PARTITIONING_STRATEGIES.md](PARTITIONING_STRATEGIES.md)**.
 
 ## 🚀 Quick Start
 
@@ -602,8 +663,28 @@ Flux<ConsumerRecord<String, String>> manualAck = client.consumerReactive()
 - **Observer Pattern**: Health change notifications
 - **Circuit Breaker Pattern**: Fault tolerance
 
-## 📚 Documentation
+## 📚 Documentation & Examples
 
+### Comprehensive Examples
+
+The library includes extensive examples demonstrating all features:
+
+- **[BasicUsageExample.java](lib/src/main/java/com/kafka/multidc/example/BasicUsageExample.java)**: Core producer/consumer operations in all programming models
+- **[SecurityExample.java](lib/src/main/java/com/kafka/multidc/example/SecurityExample.java)**: SSL/TLS and SASL authentication configuration  
+- **[ResilienceExample.java](lib/src/main/java/com/kafka/multidc/example/ResilienceExample.java)**: Circuit breaker, retry, and fault tolerance patterns
+- **[SchemaRegistryExample.java](lib/src/main/java/com/kafka/multidc/example/SchemaRegistryExample.java)**: Avro and JSON Schema integration
+- **[ObservabilityExample.java](lib/src/main/java/com/kafka/multidc/example/ObservabilityExample.java)**: Metrics, monitoring, and health checks
+- **[ReactiveExample.java](lib/src/main/java/com/kafka/multidc/example/ReactiveExample.java)**: Reactive streams with backpressure handling
+- **[ConsumerExample.java](lib/src/main/java/com/kafka/multidc/example/ConsumerExample.java)**: Advanced consumer patterns and partition management
+- **[DeadLetterQueueExample.java](lib/src/main/java/com/kafka/multidc/example/DeadLetterQueueExample.java)**: Error handling and DLQ configuration
+- **[PartitioningStrategiesExample.java](lib/src/main/java/com/kafka/multidc/example/PartitioningStrategiesExample.java)**: Advanced partitioning strategies demonstration
+- **[HealthIndicatorExample.java](lib/src/main/java/com/kafka/multidc/example/HealthIndicatorExample.java)**: Spring Boot Actuator integration
+
+### Documentation
+
+- **[PARTITIONING_STRATEGIES.md](PARTITIONING_STRATEGIES.md)**: Comprehensive partitioning strategies guide
+- **[EXAMPLES_OVERVIEW.md](EXAMPLES_OVERVIEW.md)**: Overview of all available examples
+- **[RESILIENCE.md](RESILIENCE.md)**: Resilience patterns and fault tolerance
 - [Configuration Guide](docs/CONFIGURATION.md)
 - [Producer Guide](docs/PRODUCER.md)
 - [Consumer Guide](docs/CONSUMER.md)

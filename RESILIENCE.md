@@ -227,7 +227,8 @@ public class KafkaMultiDatacenterConfig {
     public KafkaMultiDatacenterClient kafkaClient() {
         return KafkaMultiDatacenterClientBuilder.create(
             KafkaDatacenterConfiguration.builder()
-                .datacenters(getDatacenters())
+                .addDatacenter(getDatacenter1())
+                .addDatacenter(getDatacenter2())
                 .resilienceConfig(getResilienceConfig())
                 .build()
         );

@@ -37,20 +37,20 @@ public class DeadLetterQueueExample {
             
             // Configure multiple datacenters with DLQ support
             KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of(
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("us-east-1")
                         .region("us-east")
                         .bootstrapServers("localhost:9092")
                         .priority(1)
-                        .build(),
+                        .build())
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("us-west-1")
                         .region("us-west")
                         .bootstrapServers("localhost:9093")
                         .priority(2)
-                        .build()
-                ))
+                        .build())
                 .localDatacenter("us-east-1")
                 .routingStrategy(RoutingStrategy.NEAREST)
                 .deadLetterConfig(dlqConfig)

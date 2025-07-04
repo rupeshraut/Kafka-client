@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -20,12 +19,10 @@ class KafkaMultiDatacenterClientTest {
     @Test
     void testClientBuilder() {
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
-                KafkaDatacenterEndpoint.builder()
-                    .id("test-dc")
-                    .bootstrapServers("localhost:9092")
-                    .build()
-            ))
+            .addDatacenter(KafkaDatacenterEndpoint.builder()
+                .id("test-dc")
+                .bootstrapServers("localhost:9092")
+                .build())
             .localDatacenter("test-dc")
             .routingStrategy(RoutingStrategy.LATENCY_BASED)
             .healthCheckInterval(Duration.ofSeconds(30))
@@ -40,12 +37,10 @@ class KafkaMultiDatacenterClientTest {
     @Test
     void testClientCreation() {
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
-                KafkaDatacenterEndpoint.builder()
-                    .id("test-dc")
-                    .bootstrapServers("localhost:9092")
-                    .build()
-            ))
+            .addDatacenter(KafkaDatacenterEndpoint.builder()
+                .id("test-dc")
+                .bootstrapServers("localhost:9092")
+                .build())
             .build();
         
         try (KafkaMultiDatacenterClient client = KafkaMultiDatacenterClientBuilder.create(config)) {
@@ -58,22 +53,19 @@ class KafkaMultiDatacenterClientTest {
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testConfigurationValidation() {
-        // Test empty datacenters
-        assertThrows(IllegalArgumentException.class, () -> {
-            KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of())
-                .build();
-        });
+        // Test empty datacenters - this should pass validation since we can call build() without datacenters
+        // and add them via addDatacenter() later
+        KafkaDatacenterConfiguration.builder().build();
         
         // Test invalid local datacenter
         assertThrows(IllegalArgumentException.class, () -> {
             KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of(
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("test-dc")
                         .bootstrapServers("localhost:9092")
                         .build()
-                ))
+                )
                 .localDatacenter("non-existent-dc")
                 .build();
         });

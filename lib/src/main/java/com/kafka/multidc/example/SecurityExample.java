@@ -59,7 +59,7 @@ public class SecurityExample {
         logger.info("Creating secure configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("secure-east")
                     .region("us-east-1")

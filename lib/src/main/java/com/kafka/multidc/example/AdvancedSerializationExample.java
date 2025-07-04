@@ -195,7 +195,7 @@ public class AdvancedSerializationExample {
             .build();
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("serialization-us-east")
                     .region("us-east-1")

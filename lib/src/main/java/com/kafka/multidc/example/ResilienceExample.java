@@ -62,7 +62,7 @@ public class ResilienceExample {
         logger.info("Creating resilience configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 // Primary datacenter with higher priority
                 KafkaDatacenterEndpoint.builder()
                     .id("resilient-primary")

@@ -28,7 +28,7 @@ public class KafkaMultiDatacenterExample {
         try {
             // Configure multiple datacenters
             KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of(
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("us-east-1")
                         .region("us-east")

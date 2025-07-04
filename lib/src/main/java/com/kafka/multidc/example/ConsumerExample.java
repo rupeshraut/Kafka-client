@@ -83,7 +83,7 @@ public class ConsumerExample {
         logger.info("Creating consumer configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("consumer-primary")
                     .region("us-east-1")

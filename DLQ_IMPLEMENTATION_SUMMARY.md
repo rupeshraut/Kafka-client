@@ -63,7 +63,8 @@ DeadLetterMetrics getMetrics();
 ### Configuration Integration
 ```java
 KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-    .datacenters(datacenters)
+    .addDatacenter(datacenter1)
+    .addDatacenter(datacenter2)
     .deadLetterConfig(DefaultDeadLetterConfig.builder()
         .deadLetterTopicSuffix(".dlq")
         .maxRetryAttempts(3)

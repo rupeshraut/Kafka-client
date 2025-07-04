@@ -77,7 +77,7 @@ public class PartitioningStrategiesExample {
         logger.info("Creating partitioning configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("partition-east")
                     .region("us-east-1")

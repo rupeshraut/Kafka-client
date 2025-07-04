@@ -64,7 +64,7 @@ public class ReactiveExample {
         logger.info("Creating reactive configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("reactive-primary")
                     .region("us-east-1")

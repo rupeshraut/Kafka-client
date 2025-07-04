@@ -86,7 +86,7 @@ public class QuickStartExample {
     public static void main(String[] args) {
         // Step 1: Configure your datacenters
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 // Primary datacenter
                 KafkaDatacenterEndpoint.builder()
                     .id("us-east-1")
@@ -95,7 +95,8 @@ public class QuickStartExample {
                     .priority(1)
                     .compressionType("lz4")
                     .enableIdempotence(true)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 // Secondary datacenter
                 KafkaDatacenterEndpoint.builder()
                     .id("us-west-1")
@@ -104,8 +105,7 @@ public class QuickStartExample {
                     .priority(2)
                     .compressionType("lz4")
                     .enableIdempotence(true)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("us-east-1")  // Your local datacenter
             .routingStrategy(RoutingStrategy.HEALTH_AWARE)  // Intelligent routing
             .healthCheckInterval(Duration.ofSeconds(30))
@@ -287,7 +287,8 @@ import com.kafka.multidc.deadletter.DeadLetterQueueHandler;
 
 // Enhanced configuration with resilience
 KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-    .datacenters(datacenters)  // Your datacenters from Step 2
+    .addDatacenter(datacenter1)  // Your datacenters from Step 2
+    .addDatacenter(datacenter2)
     .localDatacenter("us-east-1")
     .routingStrategy(RoutingStrategy.HEALTH_AWARE)
     
@@ -398,7 +399,7 @@ import com.kafka.multidc.security.AuthenticationManager;
 
 // Enhanced configuration with enterprise security
 KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-    .datacenters(List.of(
+    .addDatacenter(
         KafkaDatacenterEndpoint.builder()
             .id("us-east-1")
             .region("us-east")
@@ -420,8 +421,9 @@ KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
                 
                 .enableHostnameVerification(true)
                 .build())
-            .build(),
+            .build())
         
+    .addDatacenter(
         KafkaDatacenterEndpoint.builder()
             .id("us-west-1")
             .region("us-west")
@@ -439,8 +441,7 @@ KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
                 .saslPassword("secure-password-west")
                 .enableHostnameVerification(true)
                 .build())
-            .build()
-    ))
+            .build())
     // ... rest of configuration
     .build();
 
@@ -462,7 +463,8 @@ import com.kafka.multidc.schema.SchemaRegistryClient;
 
 // Configure schema registry for multiple datacenters
 KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-    .datacenters(datacenters)  // Your secure datacenters from Step 8
+    .addDatacenter(datacenter1)  // Your secure datacenters from Step 8
+    .addDatacenter(datacenter2)
     
     // Add schema registry configuration
     .schemaRegistryConfig(SchemaRegistryConfig.builder()
@@ -606,7 +608,7 @@ public class KafkaEnterpriseQuickStart {
     public static void main(String[] args) {
         // Complete enterprise configuration
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("us-east-1")
                     .region("us-east")
@@ -627,8 +629,9 @@ public class KafkaEnterpriseQuickStart {
                         .saslPassword("secure-password")
                         .enableHostnameVerification(true)
                         .build())
-                    .build(),
+                    .build())
                 
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("us-west-1")
                     .region("us-west")
@@ -648,8 +651,7 @@ public class KafkaEnterpriseQuickStart {
                         .saslPassword("secure-password-west")
                         .enableHostnameVerification(true)
                         .build())
-                    .build()
-            ))
+                    .build())
             .localDatacenter("us-east-1")
             .routingStrategy(RoutingStrategy.HEALTH_AWARE)
             .healthCheckInterval(Duration.ofSeconds(30))
@@ -819,7 +821,8 @@ import com.kafka.multidc.performance.PerformanceOptimizationManager;
 
 // Performance-optimized configuration
 KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-    .datacenters(datacenters)  // Your enterprise datacenters
+    .addDatacenter(datacenter1)  // Your enterprise datacenters
+    .addDatacenter(datacenter2)
     
     // Performance optimizations
     .producerConfig(ProducerConfig.builder()

@@ -80,7 +80,7 @@ public class ObservabilityExample {
         logger.info("Creating observability configuration...");
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("observability-primary")
                     .region("us-east-1")

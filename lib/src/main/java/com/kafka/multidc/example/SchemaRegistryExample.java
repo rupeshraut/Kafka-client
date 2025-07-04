@@ -79,7 +79,7 @@ public class SchemaRegistryExample {
             .build();
         
         return KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("schema-primary")
                     .region("us-east-1")

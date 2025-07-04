@@ -29,7 +29,7 @@ public class BasicUsageExample {
     public static void main(String[] args) {
         // Configure multiple datacenters
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("us-east-1")
                     .region("us-east")
@@ -37,7 +37,8 @@ public class BasicUsageExample {
                     .priority(1)
                     .compressionType("lz4")
                     .enableIdempotence(true)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("us-west-1")
                     .region("us-west")
@@ -45,8 +46,7 @@ public class BasicUsageExample {
                     .priority(2)
                     .compressionType("lz4")
                     .enableIdempotence(true)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("us-east-1")
             .routingStrategy(RoutingStrategy.HEALTH_AWARE)
             .healthCheckInterval(Duration.ofSeconds(30))

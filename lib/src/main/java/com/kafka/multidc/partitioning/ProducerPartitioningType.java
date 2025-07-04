@@ -21,6 +21,11 @@ public enum ProducerPartitioningType {
     KEY_HASH,
     
     /**
+     * Modulus partitioning - uses simple modulus operation on key hash.
+     */
+    MODULUS,
+    
+    /**
      * Random partitioning - randomly selects partition for each message.
      */
     RANDOM,

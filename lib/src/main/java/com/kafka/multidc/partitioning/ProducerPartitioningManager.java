@@ -30,6 +30,7 @@ public class ProducerPartitioningManager {
     private void initializeBuiltInStrategies() {
         strategies.put("round-robin", new BuiltInPartitioningStrategies.RoundRobinPartitioningStrategy<>());
         strategies.put("key-hash", new BuiltInPartitioningStrategies.KeyHashPartitioningStrategy<>());
+        strategies.put("modulus", new BuiltInPartitioningStrategies.ModulusPartitioningStrategy<>());
         strategies.put("random", new BuiltInPartitioningStrategies.RandomPartitioningStrategy<>());
         strategies.put("sticky", new BuiltInPartitioningStrategies.StickyPartitioningStrategy<>());
         strategies.put("geographic", new BuiltInPartitioningStrategies.GeographicPartitioningStrategy<>());
@@ -62,6 +63,9 @@ public class ProducerPartitioningManager {
                 break;
             case KEY_HASH:
                 activeStrategy = strategies.get("key-hash");
+                break;
+            case MODULUS:
+                activeStrategy = strategies.get("modulus");
                 break;
             case RANDOM:
                 activeStrategy = strategies.get("random");

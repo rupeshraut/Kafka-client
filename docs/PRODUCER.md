@@ -390,6 +390,84 @@ public void sendWithErrorRecovery(KafkaMultiDatacenterClient client) {
 
 ## Partitioning Strategies
 
+The Kafka Multi-Datacenter Client Library provides several built-in partitioning strategies to control how messages are distributed across topic partitions.
+
+### Available Partitioning Strategies
+
+#### DEFAULT
+
+Uses Kafka's default partitioning behavior:
+
+- For records with keys: hash-based partitioning
+- For records without keys: round-robin distribution
+
+#### ROUND_ROBIN
+
+Distributes messages evenly across all partitions in a round-robin fashion.
+
+- **Use case**: Even load distribution when keys are not important
+- **Performance**: High throughput, minimal computation
+- **Consistency**: No key-based consistency guarantees
+
+#### KEY_HASH
+
+Uses MD5-based consistent hashing of the message key.
+
+- **Use case**: When you need consistent key-to-partition mapping with cryptographic distribution
+- **Performance**: Moderate (due to MD5 computation)
+- **Consistency**: Same key always maps to the same partition
+
+#### MODULUS
+
+Uses simple modulus operation on the key's hash code for partitioning.
+
+- **Algorithm**: `partition = abs(key.hashCode()) % numPartitions`
+- **Use case**: High-throughput scenarios requiring consistent key-based partitioning
+- **Performance**: Very fast (no cryptographic hashing)
+- **Consistency**: Same key always maps to the same partition
+- **Benefits**:
+  - Faster than KEY_HASH strategy
+  - Handles `Integer.MIN_VALUE` edge case safely
+  - Predictable and simple algorithm
+- **Ideal for**: Applications with well-distributed keys where performance matters
+
+#### RANDOM
+
+Randomly selects a partition for each message.
+
+- **Use case**: When partition distribution should be completely random
+- **Performance**: High throughput
+- **Consistency**: No consistency guarantees
+
+#### STICKY
+
+Sends messages to the same partition until a batch threshold is reached.
+
+- **Use case**: Optimizing for batching efficiency
+- **Performance**: Excellent for high-throughput scenarios
+- **Configuration**: `sticky.batch.size` (default: 100 messages)
+
+#### GEOGRAPHIC
+
+Routes messages based on geographic regions or datacenter locations.
+
+- **Use case**: Multi-region applications with data locality requirements
+- **Configuration**: Region-to-partition mapping
+
+#### TIME_BASED
+
+Partitions messages based on timestamp information.
+
+- **Use case**: Time-series data with temporal locality requirements
+- **Configuration**: Time window and partition mapping
+
+#### LOAD_BALANCED
+
+Considers current partition load metrics for distribution.
+
+- **Use case**: Dynamic load balancing based on real-time metrics
+- **Performance**: Adaptive to current cluster state
+
 ### Using Built-in Partitioning Strategies
 
 ```java
@@ -404,6 +482,10 @@ public void demonstratePartitioningStrategies(KafkaMultiDatacenterClient client)
     // Key-hash partitioning (default for records with keys)
     partitioningManager.setPartitioningStrategy(ProducerPartitioningType.KEY_HASH);
     sendWithPartitioning(client, partitioningManager, "key-hash");
+    
+    // Modulus partitioning (faster alternative to key-hash)
+    partitioningManager.setPartitioningStrategy(ProducerPartitioningType.MODULUS);
+    sendWithPartitioning(client, partitioningManager, "modulus");
     
     // Load-balanced partitioning
     partitioningManager.setPartitioningStrategy(ProducerPartitioningType.LOAD_BALANCED);

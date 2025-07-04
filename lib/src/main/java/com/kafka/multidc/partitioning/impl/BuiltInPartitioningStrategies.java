@@ -79,6 +79,37 @@ public class BuiltInPartitioningStrategies {
     }
     
     /**
+     * Modulus partitioning strategy using simple modulus operation on key hash.
+     * This is a simpler and faster alternative to the MD5-based key-hash strategy.
+     */
+    public static class ModulusPartitioningStrategy<K, V> implements ProducerPartitioningStrategy<K, V> {
+        
+        @Override
+        public Integer partition(ProducerRecord<K, V> record, int numPartitions) {
+            if (record.key() == null) {
+                return null; // Let Kafka handle null keys
+            }
+            
+            // Use simple modulus operation on the key's hash code
+            int hash = record.key().hashCode();
+            
+            // Ensure positive result by using Math.abs, but handle Integer.MIN_VALUE edge case
+            if (hash == Integer.MIN_VALUE) {
+                hash = 0;
+            } else {
+                hash = Math.abs(hash);
+            }
+            
+            return hash % numPartitions;
+        }
+        
+        @Override
+        public String getStrategyName() {
+            return "modulus";
+        }
+    }
+    
+    /**
      * Random partitioning strategy.
      */
     public static class RandomPartitioningStrategy<K, V> implements ProducerPartitioningStrategy<K, V> {

@@ -114,6 +114,7 @@ public class ProducerPartitioningExample {
         // Demonstrate each built-in strategy
         demonstrateRoundRobinStrategy(partitioningManager);
         demonstrateKeyHashStrategy(partitioningManager);
+        demonstrateModulusStrategy(partitioningManager);
         demonstrateRandomStrategy(partitioningManager);
         demonstrateStickyStrategy(partitioningManager);
         demonstrateLoadBalancedStrategy(partitioningManager);
@@ -163,6 +164,40 @@ public class ProducerPartitioningExample {
             Integer partition = manager.determinePartition(record, numPartitions);
             logger.info("Key '{}' -> Partition {} (consistent: {})", 
                       keys[i], partition, "consistent hashing ensures same key -> same partition");
+        }
+    }
+    
+    private static void demonstrateModulusStrategy(ProducerPartitioningManager manager) {
+        logger.info("⚡ Modulus Partitioning Strategy");
+        
+        // Configure modulus strategy
+        manager.setPartitioningStrategy(ProducerPartitioningType.MODULUS);
+        
+        // Simulate partition determination for messages with keys
+        int numPartitions = 3;
+        String[] keys = {"user1", "user2", "user3", "user1", "user2", "user4", "product-100", "product-200"};
+        
+        for (int i = 0; i < keys.length; i++) {
+            ProducerRecord<String, Object> record = new ProducerRecord<>(
+                "test-topic",
+                keys[i],
+                Map.of("messageId", "mod-" + i, "keyId", keys[i])
+            );
+            
+            Integer partition = manager.determinePartition(record, numPartitions);
+            int expectedPartition = Math.abs(keys[i].hashCode()) % numPartitions;
+            logger.info("Key '{}' (hash: {}) -> Partition {} (expected: {})", 
+                      keys[i], keys[i].hashCode(), partition, expectedPartition);
+        }
+        
+        // Show consistency by re-testing the same keys
+        logger.info("🔄 Verifying consistency - re-testing same keys:");
+        for (String key : Arrays.asList("user1", "user2", "product-100")) {
+            ProducerRecord<String, Object> record = new ProducerRecord<>(
+                "test-topic", key, Map.of("retestKey", key)
+            );
+            Integer partition = manager.determinePartition(record, numPartitions);
+            logger.info("Key '{}' -> Partition {} (should be consistent)", key, partition);
         }
     }
     
@@ -470,6 +505,7 @@ public class ProducerPartitioningExample {
         ProducerPartitioningType[] strategies = {
             ProducerPartitioningType.ROUND_ROBIN,
             ProducerPartitioningType.KEY_HASH,
+            ProducerPartitioningType.MODULUS,
             ProducerPartitioningType.RANDOM,
             ProducerPartitioningType.STICKY
         };

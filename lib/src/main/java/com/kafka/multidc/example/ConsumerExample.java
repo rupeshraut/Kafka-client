@@ -14,6 +14,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -56,6 +58,9 @@ public class ConsumerExample {
                 
                 // Demonstrate consumer patterns
                 demonstrateConsumerPatterns(client);
+                
+                // Demonstrate partition-aware consumption
+                demonstratePartitionAwareConsumption(client);
                 
                 // Run for a while to consume messages
                 logger.info("Running consumer demo for 20 seconds...");
@@ -512,6 +517,87 @@ public class ConsumerExample {
             
         } catch (Exception e) {
             logger.error("Batch processing demonstration failed", e);
+        }
+    }
+    
+    /**
+     * Demonstrate partition-aware consumer patterns.
+     */
+    private static void demonstratePartitionAwareConsumption(KafkaMultiDatacenterClient client) {
+        logger.info("=== Partition-Aware Consumer Patterns ===");
+        
+        try {
+            // Create partition-aware consumer thread
+            Thread partitionConsumerThread = new Thread(() -> {
+                try {
+                    logger.info("Starting partition-aware consumer...");
+                    
+                    // Subscribe to topics with partition strategy information
+                    client.consumerSync().subscribe(List.of("consumer-user-events", "consumer-order-events"));
+                    
+                    for (int poll = 0; poll < 4; poll++) {
+                        ConsumerRecords<String, Object> records = client.consumerSync().poll(Duration.ofSeconds(3));
+                        
+                        if (records.count() > 0) {
+                            // Group records by partition for analysis
+                            Map<Integer, List<ConsumerRecord<String, Object>>> recordsByPartition = new HashMap<>();
+                            
+                            for (ConsumerRecord<String, Object> record : records) {
+                                recordsByPartition.computeIfAbsent(record.partition(), k -> new ArrayList<>()).add(record);
+                            }
+                            
+                            // Process records partition by partition
+                            for (Map.Entry<Integer, List<ConsumerRecord<String, Object>>> entry : recordsByPartition.entrySet()) {
+                                Integer partition = entry.getKey();
+                                List<ConsumerRecord<String, Object>> partitionRecords = entry.getValue();
+                                
+                                logger.info("📊 Processing {} records from partition {}", 
+                                           partitionRecords.size(), partition);
+                                
+                                // Partition-specific processing logic
+                                processPartitionBatch(partition, partitionRecords);
+                            }
+                            
+                            logger.info("✅ Partition-aware consumption completed for {} total records", records.count());
+                        }
+                        
+                        client.consumerSync().commitSync();
+                    }
+                    
+                } catch (Exception e) {
+                    logger.error("Partition-aware consumer failed", e);
+                }
+            });
+            
+            partitionConsumerThread.setDaemon(true);
+            partitionConsumerThread.start();
+            partitionConsumerThread.join(15000);
+            
+        } catch (Exception e) {
+            logger.error("Partition-aware consumption demonstration failed", e);
+        }
+    }
+    
+    private static void processPartitionBatch(Integer partition, List<ConsumerRecord<String, Object>> records) {
+        logger.info("🔧 Processing batch for partition {} with {} records", partition, records.size());
+        
+        // Partition-specific logic
+        if (partition == 0) {
+            logger.info("  🎯 High-priority partition processing");
+        } else if (partition == 1) {
+            logger.info("  ⚖️ Standard partition processing");  
+        } else {
+            logger.info("  📦 Batch partition processing");
+        }
+        
+        // Process each record in the partition batch
+        for (ConsumerRecord<String, Object> record : records) {
+            if (record.value() instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) record.value();
+                logger.debug("    Record: offset={}, key={}, data={}", 
+                           record.offset(), record.key(), data.get("source"));
+            }
         }
     }
 }

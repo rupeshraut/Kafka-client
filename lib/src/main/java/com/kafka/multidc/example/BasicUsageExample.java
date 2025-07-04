@@ -14,9 +14,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Basic usage examples for the Kafka Multi-Datacenter Client.
@@ -25,6 +38,45 @@ import java.util.concurrent.CompletableFuture;
 public class BasicUsageExample {
     
     private static final Logger logger = LoggerFactory.getLogger(BasicUsageExample.class);
+    
+    // Health monitoring and metrics
+    private static final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+    private static final Counter successfulMessages = Counter.builder("kafka.messages.success")
+        .description("Number of successfully sent messages")
+        .register(meterRegistry);
+    private static final Counter failedMessages = Counter.builder("kafka.messages.failed")
+        .description("Number of failed message sends")
+        .register(meterRegistry);
+    private static final AtomicLong lastSuccessfulSend = new AtomicLong(System.currentTimeMillis());
+    private static final AtomicInteger activeOperations = new AtomicInteger(0);
+    
+    // Circuit breaker for resilience
+    private static final CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.of(
+        CircuitBreakerConfig.custom()
+            .failureRateThreshold(50) // 50% failure rate triggers circuit breaker
+            .waitDurationInOpenState(Duration.ofSeconds(30))
+            .slidingWindowSize(10)
+            .minimumNumberOfCalls(5)
+            .build()
+    );
+    private static final CircuitBreaker kafkaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka-client");
+    
+    private static final ScheduledExecutorService healthMonitor = Executors.newScheduledThreadPool(1);
+    
+    static {
+        // Register health metrics
+        Gauge.builder("kafka.last.success.seconds", () -> 
+            (System.currentTimeMillis() - lastSuccessfulSend.get()) / 1000.0)
+            .description("Seconds since last successful message send")
+            .register(meterRegistry);
+            
+        Gauge.builder("kafka.operations.active", activeOperations::get)
+            .description("Number of active Kafka operations")
+            .register(meterRegistry);
+            
+        // Start health monitoring
+        startHealthMonitoring();
+    }
     
     public static void main(String[] args) {
         // Configure multiple datacenters
@@ -56,19 +108,34 @@ public class BasicUsageExample {
 
         try (KafkaMultiDatacenterClient client = KafkaMultiDatacenterClientBuilder.create(config)) {
             
-            logger.info("Starting Kafka Multi-Datacenter Client Basic Usage Examples");
+            logger.info("Starting Kafka Multi-Datacenter Client with Health Monitoring");
+            logger.info("Circuit Breaker State: {}", kafkaCircuitBreaker.getState());
             
-            // Run all basic examples
+            // Run all basic examples with health monitoring
             basicProducerExample(client);
             basicConsumerExample(client);
             asyncProducerExample(client);
             reactiveProducerExample(client);
             reactiveConsumerExample(client);
             
+            // Show final health report
+            reportHealthMetrics();
+            
             logger.info("All basic usage examples completed successfully!");
             
         } catch (Exception e) {
             logger.error("Error running basic usage examples", e);
+            failedMessages.increment();
+        } finally {
+            healthMonitor.shutdown();
+            try {
+                if (!healthMonitor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    healthMonitor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                healthMonitor.shutdownNow();
+            }
         }
     }
     
@@ -86,6 +153,11 @@ public class BasicUsageExample {
                 
                 ProducerRecord<String, String> record = new ProducerRecord<>("user-events", key, value);
                 RecordMetadata metadata = client.producerSync().send(record);
+                
+                // Track success metrics
+                successfulMessages.increment();
+                lastSuccessfulSend.set(System.currentTimeMillis());
+                
                 logger.info("Message sent: key={}, partition={}, offset={}", 
                            key, metadata.partition(), metadata.offset());
             }
@@ -99,11 +171,17 @@ public class BasicUsageExample {
             ProducerRecord<String, String> recordWithHeaders = new ProducerRecord<>(
                 "user-events", null, "header-user", "header-data", headers);
             RecordMetadata metadata = client.producerSync().send(recordWithHeaders);
+            
+            // Track success metrics
+            successfulMessages.increment();
+            lastSuccessfulSend.set(System.currentTimeMillis());
+            
             logger.info("Message with headers sent: partition={}, offset={}", 
                        metadata.partition(), metadata.offset());
             
         } catch (Exception e) {
             logger.error("Basic producer example failed", e);
+            failedMessages.increment();
         }
     }
     
@@ -241,6 +319,52 @@ public class BasicUsageExample {
     }
     
     /**
+     * Start continuous health monitoring
+     */
+    private static void startHealthMonitoring() {
+        healthMonitor.scheduleAtFixedRate(() -> {
+            try {
+                reportHealthMetrics();
+            } catch (Exception e) {
+                logger.error("Health monitoring failed", e);
+            }
+        }, 30, 30, TimeUnit.SECONDS);
+    }
+    
+    /**
+     * Report current health and performance metrics
+     */
+    private static void reportHealthMetrics() {
+        long timeSinceLastSuccess = (System.currentTimeMillis() - lastSuccessfulSend.get()) / 1000;
+        double successRate = calculateSuccessRate();
+        
+        logger.info("=== KAFKA CLIENT HEALTH REPORT ===");
+        logger.info("Success Rate: {:.2f}%", successRate);
+        logger.info("Messages - Success: {}, Failed: {}", 
+                   (long)successfulMessages.count(), (long)failedMessages.count());
+        logger.info("Seconds Since Last Success: {}", timeSinceLastSuccess);
+        logger.info("Circuit Breaker State: {}", kafkaCircuitBreaker.getState());
+        logger.info("Active Operations: {}", activeOperations.get());
+        
+        // Alert on issues
+        if (successRate < 95.0 && (successfulMessages.count() + failedMessages.count()) > 10) {
+            logger.warn("🚨 LOW SUCCESS RATE ALERT: {}%", successRate);
+        }
+        if (timeSinceLastSuccess > 120) {
+            logger.warn("🚨 NO RECENT SUCCESS ALERT: {}s since last success", timeSinceLastSuccess);
+        }
+        logger.info("=====================================");
+    }
+    
+    /**
+     * Calculate current success rate
+     */
+    private static double calculateSuccessRate() {
+        double total = successfulMessages.count() + failedMessages.count();
+        return total > 0 ? (successfulMessages.count() / total) * 100.0 : 100.0;
+    }
+    
+    /**
      * Process a consumed message
      */
     private static void processMessage(ConsumerRecord<String, String> record) {
@@ -253,15 +377,11 @@ public class BasicUsageExample {
             Thread.currentThread().interrupt();
         }
         
+        // Track success metrics
+        successfulMessages.increment();
+        lastSuccessfulSend.set(System.currentTimeMillis());
+        
         logger.info("Message processed successfully: {}", record.key());
-    }
-    
-    /**
-     * Process a reactive message
-     */
-    private static void processReactiveMessage(ConsumerRecord<String, String> record) {
-        logger.info("Processing reactive message: {}", record.value());
-        // Add your reactive processing logic here
     }
     
     /**
@@ -269,6 +389,11 @@ public class BasicUsageExample {
      */
     private static void processReactiveMessageGeneric(ConsumerRecord<Object, Object> record) {
         logger.info("Processing reactive message: key={}, value={}", record.key(), record.value());
+        
+        // Track processing metrics
+        successfulMessages.increment();
+        lastSuccessfulSend.set(System.currentTimeMillis());
+        
         // Add your reactive processing logic here
         try {
             Thread.sleep(50);

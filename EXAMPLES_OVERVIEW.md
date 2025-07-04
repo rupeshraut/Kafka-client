@@ -30,7 +30,26 @@ The examples demonstrate all major enterprise features of the Kafka Multi-Datace
 - Producer and consumer operations
 - Error handling and logging
 
-### 2. SecurityExample.java
+### 2. AdvancedSerializationExample.java
+**Location**: `lib/src/main/java/com/kafka/multidc/example/AdvancedSerializationExample.java`
+
+**Purpose**: Comprehensive serialization strategies and data formats
+- JSON, Avro, and Protobuf serialization patterns
+- Multi-format compression (GZIP, Snappy, LZ4, ZSTD)
+- AES-128 and AES-256 encryption for sensitive data
+- Schema evolution and compatibility management
+- Per-datacenter serialization configuration
+- Compliance-based serialization strategies
+
+**Key Features**:
+- Multi-format serialization (JSON, Avro simulation)
+- 4 compression algorithms with performance characteristics
+- Enterprise-grade encryption (AES-128/256)
+- Schema evolution (backward/forward compatibility)
+- Regional compliance requirements (GDPR, PCI-DSS)
+- Custom serializers and deserializers
+
+### 3. SecurityExample.java
 **Location**: `lib/src/main/java/com/kafka/multidc/example/SecurityExample.java`
 
 **Purpose**: Comprehensive security configuration and secure operations
@@ -45,7 +64,7 @@ The examples demonstrate all major enterprise features of the Kafka Multi-Datace
 - Secure message production
 - Certificate management examples
 
-### 3. ResilienceExample.java
+### 4. ResilienceExample.java
 **Location**: `lib/src/main/java/com/kafka/multidc/example/ResilienceExample.java`
 
 **Purpose**: Demonstrates resilience patterns and failure handling

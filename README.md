@@ -670,6 +670,7 @@ Flux<ConsumerRecord<String, String>> manualAck = client.consumerReactive()
 The library includes extensive examples demonstrating all features:
 
 - **[BasicUsageExample.java](lib/src/main/java/com/kafka/multidc/example/BasicUsageExample.java)**: Core producer/consumer operations in all programming models
+- **[AdvancedSerializationExample.java](lib/src/main/java/com/kafka/multidc/example/AdvancedSerializationExample.java)**: JSON, Avro, compression, encryption, and schema evolution
 - **[SecurityExample.java](lib/src/main/java/com/kafka/multidc/example/SecurityExample.java)**: SSL/TLS and SASL authentication configuration  
 - **[ResilienceExample.java](lib/src/main/java/com/kafka/multidc/example/ResilienceExample.java)**: Circuit breaker, retry, and fault tolerance patterns
 - **[SchemaRegistryExample.java](lib/src/main/java/com/kafka/multidc/example/SchemaRegistryExample.java)**: Avro and JSON Schema integration

@@ -1,0 +1,110 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# IDE Files
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.metadata/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Logs
+*.log
+logs/
+log/
+
+# Test Reports
+test-results/
+test-output/
+.jacoco/
+jacoco.exec
+target/
+
+# Performance and Profiling
+*.hprof
+*.prof
+*.jfr
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Security - Never commit sensitive data
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+*.truststore
+application-local.properties
+application-dev.properties
+secrets/
+
+# Documentation build artifacts
+.asciidoctor/
+
+# JVM crash logs
+hs_err_pid*
+
+# Local environment overrides
+local.properties
+.env
+.env.local
+
+# Maven (if ever used)
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+# TestContainers
+.testcontainers/
+
+# Coverage reports
+coverage/
+jacoco/
+*.exec
+
+# Mutation testing
+pit-reports/
+
+# Docker
+.dockerignore
+
+# Generated sources
+generated/
+generated-sources/
+generated-test-sources/

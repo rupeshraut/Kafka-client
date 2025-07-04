@@ -1,0 +1,261 @@
+/*
+ * Kafka Multi-Datacenter Client Library
+ * Enterprise-grade Kafka producer and consumer library for multi-datacenter deployments
+ */
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'jacoco'
+    id 'info.solidsoft.pitest' version '1.15.0'
+    id 'application'
+}
+
+// Configure JAR name
+archivesBaseName = 'kafka-multidc-client'
+group = 'com.kafka.multidc'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://packages.confluent.io/maven/'
+    }
+}
+
+ext {
+    kafkaVersion = '3.7.0'
+    confluentVersion = '7.6.0'
+    resilience4jVersion = '2.1.0'
+    micrometerVersion = '1.12.0'
+    reactorVersion = '3.6.0'
+    testcontainersVersion = '1.19.0'
+    slf4jVersion = '2.0.9'
+    jacksonVersion = '2.16.0'
+}
+
+dependencies {
+    // Kafka Core Dependencies
+    api "org.apache.kafka:kafka-clients:${kafkaVersion}"
+    api "org.apache.kafka:kafka-streams:${kafkaVersion}"
+    
+    // Schema Registry and Avro Support
+    api "io.confluent:kafka-avro-serializer:${confluentVersion}"
+    api "io.confluent:kafka-json-schema-serializer:${confluentVersion}"
+    api "io.confluent:kafka-schema-registry-client:${confluentVersion}"
+    api "org.apache.avro:avro:1.11.3"
+    
+    // Reactive Programming
+    api "io.projectreactor:reactor-core:${reactorVersion}"
+    api "io.projectreactor.kafka:reactor-kafka:1.3.21"
+    
+    // Resilience Patterns
+    api "io.github.resilience4j:resilience4j-all:${resilience4jVersion}"
+    api "io.vavr:vavr:0.10.4"
+    
+    // Metrics and Observability
+    api "io.micrometer:micrometer-core:${micrometerVersion}"
+    api "io.micrometer:micrometer-registry-prometheus:${micrometerVersion}"
+    
+    // Spring Boot Actuator for Health Checks (optional dependency)
+    compileOnly "org.springframework.boot:spring-boot-starter-actuator:3.2.0"
+    compileOnly "org.springframework.boot:spring-boot-autoconfigure:3.2.0"
+    
+    // JSON Processing
+    implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
+    
+    // Logging
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    implementation "ch.qos.logback:logback-classic:1.4.14"
+    
+    // Utilities
+    implementation "com.google.guava:guava:32.1.3-jre"
+    implementation "org.apache.commons:commons-lang3:3.13.0"
+    implementation "org.apache.commons:commons-pool2:2.12.0"
+    
+    // Testing Dependencies
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.1"
+    testImplementation "org.mockito:mockito-core:5.7.0"
+    testImplementation "org.mockito:mockito-junit-jupiter:5.7.0"
+    testImplementation "org.assertj:assertj-core:3.24.2"
+    testImplementation "org.awaitility:awaitility:4.2.0"
+    
+    // Integration Testing
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:kafka:${testcontainersVersion}"
+    // Note: schema-registry module is not available in TestContainers core
+    
+    // Reactive Testing
+    testImplementation "io.projectreactor:reactor-test:${reactorVersion}"
+    
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Apply Java 21 toolchain (matching system Java version)
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withJavadocJar()
+    withSourcesJar()
+}
+
+// Application configuration for examples
+application {
+    mainClass = 'com.kafka.multidc.example.KafkaMultiDatacenterExample'
+}
+
+// Test configuration
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+    
+    // finalizedBy jacocoTestReport  // Temporarily disabled
+}
+
+// Integration tests
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+    
+    // Longer timeout for integration tests
+    systemProperty 'junit.jupiter.execution.timeout.default', '300s'
+}
+
+// All tests (unit + integration)
+task allTests(type: Test) {
+    useJUnitPlatform()
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
+}
+
+// JaCoCo code coverage
+jacocoTestReport {
+    dependsOn test, integrationTest
+    mustRunAfter javadoc, startScripts
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    
+    executionData fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec")
+}
+
+// PIT mutation testing
+pitest {
+    targetClasses = ['com.kafka.multidc.*']
+    excludedTestClasses = ['**.*IntegrationTest', '**.*IT']
+    threads = 4
+    outputFormats = ['XML', 'HTML']
+    timestampedReports = false
+    mutationThreshold = 75
+    coverageThreshold = 85
+}
+
+// Integration Test Configuration
+sourceSets {
+    integrationTest {
+        java {
+            compileClasspath += sourceSets.main.output
+            runtimeClasspath += sourceSets.main.output
+        }
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom implementation
+    integrationTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+tasks.named('integrationTest', Test) {
+    description = 'Run integration tests with TestContainers'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    shouldRunAfter test
+    
+    useJUnitPlatform()
+    
+    systemProperty 'junit.jupiter.testinstance.lifecycle.default', 'per_class'
+    systemProperty 'testcontainers.reuse.enable', 'true'
+    
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+    }
+}
+
+tasks.named('allTests') {
+    description = 'Run all tests (unit + integration)'
+    group = 'verification'
+    dependsOn test, integrationTest
+}
+
+// Publishing configuration
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            
+            // Set artifact ID to match the JAR name
+            artifactId = 'kafka-multidc-client'
+            
+            pom {
+                name = 'Kafka Multi-Datacenter Client'
+                description = 'Enterprise-grade Kafka producer and consumer library for multi-datacenter deployments'
+                url = 'https://github.com/your-org/kafka-multidc-client'
+                
+                licenses {
+                    license {
+                        name = 'Apache License 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id = 'kafka-multidc-team'
+                        name = 'Kafka Multi-Datacenter Team'
+                        email = 'team@yourorg.com'
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Build tasks
+tasks.register('buildMultiDatacenterClient') {
+    dependsOn 'build'
+    description = 'Build Kafka Multi-Datacenter Client'
+    group = 'build'
+}
+
+tasks.register('testMultiDatacenterClient') {
+    dependsOn 'test'
+    description = 'Test Kafka Multi-Datacenter Client'
+    group = 'verification'
+}
+
+tasks.register('runExample') {
+    dependsOn 'run'
+    description = 'Run Kafka Multi-Datacenter Example'
+    group = 'application'
+}

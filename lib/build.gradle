@@ -107,6 +107,14 @@ application {
     mainClass = 'com.kafka.multidc.example.KafkaMultiDatacenterExample'
 }
 
+// Task for running BasicUsageExample
+task runBasicUsageExample(type: JavaExec) {
+    group = 'application'
+    description = 'Run the enhanced BasicUsageExample with performance benchmarking'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.kafka.multidc.example.BasicUsageExample'
+}
+
 // Test configuration
 tasks.named('test') {
     useJUnitPlatform {

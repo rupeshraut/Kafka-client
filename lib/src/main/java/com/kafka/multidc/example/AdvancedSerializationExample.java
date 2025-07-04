@@ -213,7 +213,8 @@ public class AdvancedSerializationExample {
                         "key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer",
                         "value.deserializer", "com.kafka.multidc.example.AdvancedSerializationExample$JsonUserEventDeserializer"
                     ))
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("serialization-eu-west")
                     .region("eu-west-1")
@@ -231,8 +232,7 @@ public class AdvancedSerializationExample {
                         "key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer",
                         "value.deserializer", "com.kafka.multidc.example.AdvancedSerializationExample$CompressedJsonDeserializer"
                     ))
-                    .build()
-            ))
+                    .build())
             .localDatacenter("serialization-us-east")
             .routingStrategy(RoutingStrategy.LATENCY_BASED)
             .healthCheckInterval(Duration.ofSeconds(30))

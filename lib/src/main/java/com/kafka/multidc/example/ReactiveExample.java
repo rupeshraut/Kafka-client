@@ -76,7 +76,8 @@ public class ReactiveExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(30)
                     .minConnections(10)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("reactive-secondary")
                     .region("us-west-2")
@@ -88,8 +89,7 @@ public class ReactiveExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(25)
                     .minConnections(5)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("reactive-primary")
             .routingStrategy(RoutingStrategy.LATENCY_BASED)
             .healthCheckInterval(Duration.ofSeconds(15))

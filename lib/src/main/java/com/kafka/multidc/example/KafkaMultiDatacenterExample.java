@@ -35,22 +35,23 @@ public class KafkaMultiDatacenterExample {
                         .bootstrapServers("kafka-us-east.example.com:9092")
                         .priority(1)
                         .compressionType("lz4")
-                        .build(),
+                        .build())
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("us-west-1")
                         .region("us-west")
                         .bootstrapServers("kafka-us-west.example.com:9092")
                         .priority(2)
                         .compressionType("lz4")
-                        .build(),
+                        .build())
+                .addDatacenter(
                     KafkaDatacenterEndpoint.builder()
                         .id("eu-central-1")
                         .region("europe")
                         .bootstrapServers("kafka-eu-central.example.com:9092")
                         .priority(3)
                         .compressionType("lz4")
-                        .build()
-                ))
+                        .build())
                 .localDatacenter("us-east-1")
                 .routingStrategy(RoutingStrategy.PRIMARY_PREFERRED)
                 .healthCheckInterval(Duration.ofSeconds(30))

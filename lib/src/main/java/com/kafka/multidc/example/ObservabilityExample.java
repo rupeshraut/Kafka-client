@@ -92,7 +92,8 @@ public class ObservabilityExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(25)
                     .minConnections(5)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("observability-secondary")
                     .region("us-west-2")
@@ -104,7 +105,8 @@ public class ObservabilityExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(20)
                     .minConnections(3)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("observability-monitor")
                     .region("eu-central-1")
@@ -116,8 +118,7 @@ public class ObservabilityExample {
                     .requestTimeout(Duration.ofSeconds(45))
                     .maxConnections(15)
                     .minConnections(2)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("observability-primary")
             .routingStrategy(RoutingStrategy.WEIGHTED)
             .healthCheckInterval(Duration.ofSeconds(10))

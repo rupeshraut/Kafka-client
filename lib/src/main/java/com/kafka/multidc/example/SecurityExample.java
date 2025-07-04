@@ -73,7 +73,8 @@ public class SecurityExample {
                     .saslCredentials("kafka-client-east", "secure-password-east")
                     .keystore("/path/to/client-east.keystore.jks", "keystore-password")
                     .truststore("/path/to/client-east.truststore.jks", "truststore-password")
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("secure-west")
                     .region("us-west-2")
@@ -87,8 +88,7 @@ public class SecurityExample {
                     .saslCredentials("kafka-client-west", "secure-password-west")
                     .keystore("/path/to/client-west.keystore.jks", "keystore-password")
                     .truststore("/path/to/client-west.truststore.jks", "truststore-password")
-                    .build()
-            ))
+                    .build())
             .localDatacenter("secure-east")
             .routingStrategy(RoutingStrategy.NEAREST)
             .healthCheckInterval(Duration.ofSeconds(30))

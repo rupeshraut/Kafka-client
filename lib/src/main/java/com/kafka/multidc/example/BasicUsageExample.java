@@ -30,6 +30,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 /**
  * Basic usage examples for the Kafka Multi-Datacenter Client.
@@ -63,6 +69,36 @@ public class BasicUsageExample {
     
     private static final ScheduledExecutorService healthMonitor = Executors.newScheduledThreadPool(1);
     
+    // Message deduplication and idempotency
+    private static final ConcurrentMap<String, MessageMetadata> processedMessages = new ConcurrentHashMap<>();
+    private static final Counter duplicateMessages = Counter.builder("kafka.messages.duplicate")
+        .description("Number of duplicate messages detected and skipped")
+        .register(meterRegistry);
+    private static final Counter idempotentOperations = Counter.builder("kafka.operations.idempotent")
+        .description("Number of idempotent operations performed")
+        .register(meterRegistry);
+    
+    /**
+     * Metadata for tracking processed messages
+     */
+    private static class MessageMetadata {
+        final long timestamp;
+        final String messageId;
+        final String contentHash;
+        final boolean processed;
+        
+        MessageMetadata(String messageId, String contentHash, boolean processed) {
+            this.timestamp = System.currentTimeMillis();
+            this.messageId = messageId;
+            this.contentHash = contentHash;
+            this.processed = processed;
+        }
+        
+        boolean isExpired(long ttlMs) {
+            return System.currentTimeMillis() - timestamp > ttlMs;
+        }
+    }
+    
     static {
         // Register health metrics
         Gauge.builder("kafka.last.success.seconds", () -> 
@@ -76,6 +112,9 @@ public class BasicUsageExample {
             
         // Start health monitoring
         startHealthMonitoring();
+        
+        // Start deduplication cleanup
+        startDeduplicationCleanup();
     }
     
     public static void main(String[] args) {
@@ -111,12 +150,16 @@ public class BasicUsageExample {
             logger.info("Starting Kafka Multi-Datacenter Client with Health Monitoring");
             logger.info("Circuit Breaker State: {}", kafkaCircuitBreaker.getState());
             
-            // Run all basic examples with health monitoring
+            // Run all basic examples with health monitoring and idempotency
             basicProducerExample(client);
+            idempotentProducerExample(client);
             basicConsumerExample(client);
             asyncProducerExample(client);
             reactiveProducerExample(client);
             reactiveConsumerExample(client);
+            
+            // Demonstrate deduplication by sending duplicates
+            demonstrateDeduplication(client);
             
             // Show final health report
             reportHealthMetrics();
@@ -340,8 +383,10 @@ public class BasicUsageExample {
         
         logger.info("=== KAFKA CLIENT HEALTH REPORT ===");
         logger.info("Success Rate: {:.2f}%", successRate);
-        logger.info("Messages - Success: {}, Failed: {}", 
-                   (long)successfulMessages.count(), (long)failedMessages.count());
+        logger.info("Messages - Success: {}, Failed: {}, Duplicates: {}", 
+                   (long)successfulMessages.count(), (long)failedMessages.count(), (long)duplicateMessages.count());
+        logger.info("Idempotent Operations: {}", (long)idempotentOperations.count());
+        logger.info("Processed Messages Cache Size: {}", processedMessages.size());
         logger.info("Seconds Since Last Success: {}", timeSinceLastSuccess);
         logger.info("Circuit Breaker State: {}", kafkaCircuitBreaker.getState());
         logger.info("Active Operations: {}", activeOperations.get());
@@ -365,10 +410,155 @@ public class BasicUsageExample {
     }
     
     /**
-     * Process a consumed message
+     * Start deduplication cleanup task
+     */
+    private static void startDeduplicationCleanup() {
+        healthMonitor.scheduleAtFixedRate(() -> {
+            try {
+                cleanupExpiredMessages();
+            } catch (Exception e) {
+                logger.error("Deduplication cleanup failed", e);
+            }
+        }, 60, 60, TimeUnit.SECONDS); // Cleanup every minute
+    }
+    
+    /**
+     * Clean up expired message metadata
+     */
+    private static void cleanupExpiredMessages() {
+        long ttl = 3600000; // 1 hour TTL
+        int removed = 0;
+        
+        for (var entry : processedMessages.entrySet()) {
+            if (entry.getValue().isExpired(ttl)) {
+                processedMessages.remove(entry.getKey());
+                removed++;
+            }
+        }
+        
+        if (removed > 0) {
+            logger.debug("Cleaned up {} expired message entries", removed);
+        }
+    }
+    
+    /**
+     * Generate idempotent message ID from record content
+     */
+    private static String generateIdempotentId(String topic, String key, String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            String content = topic + "|" + (key != null ? key : "") + "|" + value;
+            byte[] hash = digest.digest(content.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            // Fallback to simple hash
+            return String.valueOf((topic + key + value).hashCode());
+        }
+    }
+    
+    /**
+     * Check if message has already been processed (deduplication)
+     */
+    private static boolean isMessageAlreadyProcessed(String messageId, String contentHash) {
+        MessageMetadata existing = processedMessages.get(messageId);
+        if (existing != null) {
+            if (existing.contentHash.equals(contentHash)) {
+                duplicateMessages.increment();
+                logger.warn("Duplicate message detected and skipped: {}", messageId.substring(0, 8) + "...");
+                return true;
+            } else {
+                logger.warn("Message ID collision detected with different content: {}", messageId.substring(0, 8) + "...");
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Mark message as processed for deduplication
+     */
+    private static void markMessageProcessed(String messageId, String contentHash) {
+        processedMessages.put(messageId, new MessageMetadata(messageId, contentHash, true));
+    }
+    
+    /**
+     * Send message with idempotency and deduplication support
+     */
+    private static RecordMetadata sendIdempotentMessage(KafkaMultiDatacenterClient client, 
+                                                       String topic, String key, String value) throws Exception {
+        // Generate idempotent message ID
+        String messageId = generateIdempotentId(topic, key, value);
+        String contentHash = generateIdempotentId("content", "", value);
+        
+        // Check for duplicates
+        if (isMessageAlreadyProcessed(messageId, contentHash)) {
+            logger.info("Skipping duplicate message: topic={}, key={}", topic, key);
+            return null; // Return null to indicate duplicate
+        }
+        
+        // Add idempotency headers
+        RecordHeaders headers = new RecordHeaders();
+        headers.add("message-id", messageId.getBytes());
+        headers.add("content-hash", contentHash.getBytes());
+        headers.add("timestamp", String.valueOf(System.currentTimeMillis()).getBytes());
+        headers.add("client-id", "kafka-multidc-client".getBytes());
+        
+        ProducerRecord<String, String> record = new ProducerRecord<>(topic, null, key, value, headers);
+        
+        try {
+            RecordMetadata metadata = client.producerSync().send(record);
+            
+            // Mark as processed after successful send
+            markMessageProcessed(messageId, contentHash);
+            idempotentOperations.increment();
+            successfulMessages.increment();
+            lastSuccessfulSend.set(System.currentTimeMillis());
+            
+            logger.info("Idempotent message sent: topic={}, key={}, messageId={}, partition={}, offset={}", 
+                       topic, key, messageId.substring(0, 8) + "...", metadata.partition(), metadata.offset());
+            
+            return metadata;
+        } catch (Exception e) {
+            logger.error("Failed to send idempotent message: topic={}, key={}, messageId={}", 
+                        topic, key, messageId.substring(0, 8) + "...", e);
+            failedMessages.increment();
+            throw e;
+        }
+    }
+    
+    /**
+     * Process a consumed message with deduplication
      */
     private static void processMessage(ConsumerRecord<String, String> record) {
         logger.info("Processing message: {}", record.value());
+        
+        // Extract message ID from headers for deduplication
+        String messageId = null;
+        String contentHash = null;
+        
+        if (record.headers() != null) {
+            var messageIdHeader = record.headers().lastHeader("message-id");
+            var contentHashHeader = record.headers().lastHeader("content-hash");
+            
+            if (messageIdHeader != null) {
+                messageId = new String(messageIdHeader.value());
+            }
+            if (contentHashHeader != null) {
+                contentHash = new String(contentHashHeader.value());
+            }
+        }
+        
+        // If no message ID in headers, generate one from content
+        if (messageId == null) {
+            messageId = generateIdempotentId(record.topic(), record.key(), record.value());
+            contentHash = generateIdempotentId("content", "", record.value());
+        }
+        
+        // Check for duplicates
+        if (isMessageAlreadyProcessed(messageId, contentHash)) {
+            logger.info("Skipping duplicate message: topic={}, key={}, messageId={}", 
+                       record.topic(), record.key(), messageId.substring(0, 8) + "...");
+            return;
+        }
         
         // Simulate processing time
         try {
@@ -377,20 +567,40 @@ public class BasicUsageExample {
             Thread.currentThread().interrupt();
         }
         
-        // Track success metrics
+        // Mark as processed and track success metrics
+        markMessageProcessed(messageId, contentHash);
+        idempotentOperations.increment();
         successfulMessages.increment();
         lastSuccessfulSend.set(System.currentTimeMillis());
         
-        logger.info("Message processed successfully: {}", record.key());
+        logger.info("Message processed successfully: key={}, messageId={}", 
+                   record.key(), messageId.substring(0, 8) + "...");
     }
     
     /**
-     * Process a reactive message (generic version)
+     * Process a reactive message (generic version) with deduplication
      */
     private static void processReactiveMessageGeneric(ConsumerRecord<Object, Object> record) {
         logger.info("Processing reactive message: key={}, value={}", record.key(), record.value());
         
+        // Convert to string for processing
+        String key = record.key() != null ? record.key().toString() : null;
+        String value = record.value() != null ? record.value().toString() : "";
+        
+        // Generate message ID for deduplication
+        String messageId = generateIdempotentId(record.topic(), key, value);
+        String contentHash = generateIdempotentId("content", "", value);
+        
+        // Check for duplicates
+        if (isMessageAlreadyProcessed(messageId, contentHash)) {
+            logger.info("Skipping duplicate reactive message: topic={}, key={}, messageId={}", 
+                       record.topic(), key, messageId.substring(0, 8) + "...");
+            return;
+        }
+        
         // Track processing metrics
+        markMessageProcessed(messageId, contentHash);
+        idempotentOperations.increment();
         successfulMessages.increment();
         lastSuccessfulSend.set(System.currentTimeMillis());
         
@@ -399,6 +609,73 @@ public class BasicUsageExample {
             Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+        
+        logger.info("Reactive message processed: key={}, messageId={}", 
+                   key, messageId.substring(0, 8) + "...");
+    }
+    
+    /**
+     * Idempotent producer example with deduplication
+     */
+    private static void idempotentProducerExample(KafkaMultiDatacenterClient client) {
+        logger.info("=== Idempotent Producer Example ===");
+        
+        try {
+            // Send messages with idempotency support
+            for (int i = 0; i < 5; i++) {
+                String key = "idempotent-user-" + i;
+                String value = "idempotent-event-data-" + i;
+                
+                RecordMetadata metadata = sendIdempotentMessage(client, "idempotent-events", key, value);
+                if (metadata != null) {
+                    logger.info("New idempotent message sent: key={}, partition={}, offset={}", 
+                               key, metadata.partition(), metadata.offset());
+                } else {
+                    logger.info("Duplicate idempotent message skipped: key={}", key);
+                }
+            }
+            
+        } catch (Exception e) {
+            logger.error("Idempotent producer example failed", e);
+        }
+    }
+    
+    /**
+     * Demonstrate deduplication by sending duplicate messages
+     */
+    private static void demonstrateDeduplication(KafkaMultiDatacenterClient client) {
+        logger.info("=== Deduplication Demonstration ===");
+        
+        try {
+            String key = "duplicate-test";
+            String value = "test-message-for-deduplication";
+            
+            // Send the same message multiple times to demonstrate deduplication
+            logger.info("Sending the same message 3 times to demonstrate deduplication:");
+            
+            for (int i = 1; i <= 3; i++) {
+                logger.info("Attempt {} to send duplicate message:", i);
+                RecordMetadata metadata = sendIdempotentMessage(client, "duplicate-test", key, value);
+                
+                if (metadata != null) {
+                    logger.info("  ✓ Message sent: partition={}, offset={}", 
+                               metadata.partition(), metadata.offset());
+                } else {
+                    logger.info("  ⚠ Duplicate detected and skipped");
+                }
+            }
+            
+            // Send a different message with the same key to show it's not blocked
+            logger.info("Sending different message with same key:");
+            RecordMetadata metadata = sendIdempotentMessage(client, "duplicate-test", key, "different-content");
+            if (metadata != null) {
+                logger.info("  ✓ New message sent: partition={}, offset={}", 
+                           metadata.partition(), metadata.offset());
+            }
+            
+        } catch (Exception e) {
+            logger.error("Deduplication demonstration failed", e);
         }
     }
 }

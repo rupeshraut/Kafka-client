@@ -187,13 +187,11 @@ public class AdvancedSerializationExample {
         
         // Schema Registry configuration
         SchemaRegistryConfig schemaConfig = SchemaRegistryConfig.builder()
-            .url("http://schema-registry.company.com:8081")
+            .urls("http://schema-registry.company.com:8081")
             .basicAuth("schema-user", "schema-password")
-            .enableSslHostnameVerification(true)
             .connectionTimeout(Duration.ofSeconds(10))
             .readTimeout(Duration.ofSeconds(30))
-            .maxRetries(3)
-            .retryBackoffMs(1000)
+            .retries(3, Duration.ofMillis(1000))
             .build();
         
         return KafkaDatacenterConfiguration.builder()

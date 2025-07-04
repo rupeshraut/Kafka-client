@@ -79,7 +79,7 @@ public class ResilienceIntegrationTest {
     void testCircuitBreakerPattern() {
         logger.info("Testing Circuit Breaker pattern");
         
-        String datacenter = "test-datacenter-1";
+        String datacenter = "circuit-breaker-test-" + System.currentTimeMillis();
         CircuitBreaker circuitBreaker = resilienceManager.getCircuitBreaker(datacenter);
         
         // Initially closed
@@ -112,7 +112,7 @@ public class ResilienceIntegrationTest {
     void testRetryPattern() {
         logger.info("Testing Retry pattern");
         
-        String datacenter = "test-datacenter-2";
+        String datacenter = "retry-test-" + System.currentTimeMillis();
         AtomicInteger attemptCount = new AtomicInteger(0);
         
         // Test that all retries eventually fail
@@ -157,19 +157,43 @@ public class ResilienceIntegrationTest {
     void testRateLimiterPattern() {
         logger.info("Testing Rate Limiter pattern");
         
-        String datacenter = "test-datacenter-3";
+        // Use unique datacenter for this test to avoid interference
+        String datacenter = "rate-limiter-test-datacenter-" + System.currentTimeMillis();
         
         // Track successful and rejected requests
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger rejectedCount = new AtomicInteger(0);
         
+        // Create a fresh ResilienceManager specifically for this test
+        ResilienceConfiguration testConfig = ResilienceConfiguration.builder()
+            .circuitBreakerFailureRateThreshold(60.0f)
+            .circuitBreakerSlidingWindowSize(5)
+            .circuitBreakerWaitDurationInOpenState(Duration.ofSeconds(2))
+            .retryMaxAttempts(3)
+            .retryWaitDuration(Duration.ofMillis(100))
+            .rateLimiterRequestsPerSecond(3) // Very restrictive for clear rate limiting
+            .bulkheadMaxConcurrentCalls(10) // High enough to not interfere
+            .timeLimiterTimeout(Duration.ofSeconds(10)) // Long enough to not interfere
+            .build();
+        
+        ResilienceManager testResilienceManager = new ResilienceManager(testConfig, executorService);
+        
+        // Wait a bit to ensure rate limiter is fresh
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         // Rapidly execute requests to trigger rate limiting
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 15; i++) {
             try {
-                resilienceManager.executeSync(datacenter, () -> {
+                testResilienceManager.executeSync(datacenter, () -> {
                     successCount.incrementAndGet();
                     return "Success " + successCount.get();
                 });
+                // Add small delay to make rate limiting more predictable
+                Thread.sleep(50);
             } catch (Exception e) {
                 // Check for any rate limiting related exceptions
                 if (e.getMessage().contains("Rate limit") || 
@@ -203,7 +227,22 @@ public class ResilienceIntegrationTest {
     void testBulkheadPattern() {
         logger.info("Testing Bulkhead pattern");
         
-        String datacenter = "test-datacenter-4";
+        // Use unique datacenter for this test to avoid interference
+        String datacenter = "bulkhead-test-datacenter-" + System.currentTimeMillis();
+        
+        // Create a fresh ResilienceManager specifically for this test
+        ResilienceConfiguration testConfig = ResilienceConfiguration.builder()
+            .circuitBreakerFailureRateThreshold(60.0f)
+            .circuitBreakerSlidingWindowSize(5)
+            .circuitBreakerWaitDurationInOpenState(Duration.ofSeconds(2))
+            .retryMaxAttempts(3)
+            .retryWaitDuration(Duration.ofMillis(100))
+            .rateLimiterRequestsPerSecond(50) // High enough to not interfere
+            .bulkheadMaxConcurrentCalls(3) // Small bulkhead for clear testing
+            .timeLimiterTimeout(Duration.ofSeconds(10)) // Long enough to not interfere
+            .build();
+        
+        ResilienceManager testResilienceManager = new ResilienceManager(testConfig, executorService);
         
         AtomicInteger concurrentCalls = new AtomicInteger(0);
         AtomicInteger rejectedCalls = new AtomicInteger(0);
@@ -212,16 +251,16 @@ public class ResilienceIntegrationTest {
         // Create multiple concurrent calls to test bulkhead
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         
-        for (int i = 0; i < 8; i++) { // Reduced from 10 to 8 for more predictable behavior
+        for (int i = 0; i < 6; i++) { // Create more calls than the bulkhead limit
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
-                    resilienceManager.executeSync(datacenter, () -> {
+                    testResilienceManager.executeSync(datacenter, () -> {
                         int current = concurrentCalls.incrementAndGet();
                         logger.debug("Concurrent call #{}", current);
                         
                         // Simulate work with shorter delay
                         try {
-                            Thread.sleep(50); // Reduced from 100ms to 50ms
+                            Thread.sleep(200); // Enough time to trigger bulkhead
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,7 +23,6 @@ class ConfigurationValidationTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             System.out.println("About to build configuration with empty datacenters");
             KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of())
                 .build();
             System.out.println("Configuration built unexpectedly: " + config);
         });
@@ -41,12 +39,10 @@ class ConfigurationValidationTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             System.out.println("About to build configuration with invalid local datacenter");
             KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-                .datacenters(List.of(
-                    KafkaDatacenterEndpoint.builder()
-                        .id("test-dc")
-                        .bootstrapServers("localhost:9092")
-                        .build()
-                ))
+                .addDatacenter(KafkaDatacenterEndpoint.builder()
+                    .id("test-dc")
+                    .bootstrapServers("localhost:9092")
+                    .build())
                 .localDatacenter("non-existent-dc")
                 .build();
             System.out.println("Configuration built unexpectedly: " + config);
@@ -55,19 +51,16 @@ class ConfigurationValidationTest {
         System.out.println("Exception caught: " + exception.getMessage());
         assertTrue(exception.getMessage().contains("Local datacenter ID not found"));
     }
-    
-    @Test
+            @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidConfiguration() {
         System.out.println("Starting valid configuration test");
         
         KafkaDatacenterConfiguration config = KafkaDatacenterConfiguration.builder()
-            .datacenters(List.of(
-                KafkaDatacenterEndpoint.builder()
-                    .id("test-dc")
-                    .bootstrapServers("localhost:9092")
-                    .build()
-            ))
+            .addDatacenter(KafkaDatacenterEndpoint.builder()
+                .id("test-dc")
+                .bootstrapServers("localhost:9092")
+                .build())
             .localDatacenter("test-dc")
             .healthCheckInterval(Duration.ofSeconds(30))
             .connectionTimeout(Duration.ofSeconds(10))

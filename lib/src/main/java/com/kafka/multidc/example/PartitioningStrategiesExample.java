@@ -89,7 +89,8 @@ public class PartitioningStrategiesExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(25)
                     .minConnections(5)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("partition-west")
                     .region("us-west-2")
@@ -101,7 +102,8 @@ public class PartitioningStrategiesExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(20)
                     .minConnections(3)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("partition-eu")
                     .region("eu-central-1")
@@ -113,8 +115,7 @@ public class PartitioningStrategiesExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(15)
                     .minConnections(2)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("partition-east")
             .routingStrategy(RoutingStrategy.PRIMARY_PREFERRED)
             .healthCheckInterval(Duration.ofSeconds(30))

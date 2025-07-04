@@ -95,7 +95,8 @@ public class ConsumerExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(20)
                     .minConnections(5)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("consumer-secondary")
                     .region("us-west-2")
@@ -107,8 +108,7 @@ public class ConsumerExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(15)
                     .minConnections(3)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("consumer-primary")
             .routingStrategy(RoutingStrategy.PRIMARY_PREFERRED)
             .healthCheckInterval(Duration.ofSeconds(30))

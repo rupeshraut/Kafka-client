@@ -53,9 +53,10 @@ class KafkaMultiDatacenterClientTest {
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testConfigurationValidation() {
-        // Test empty datacenters - this should pass validation since we can call build() without datacenters
-        // and add them via addDatacenter() later
-        KafkaDatacenterConfiguration.builder().build();
+        // Test empty datacenters - should throw exception
+        assertThrows(IllegalArgumentException.class, () -> {
+            KafkaDatacenterConfiguration.builder().build();
+        });
         
         // Test invalid local datacenter
         assertThrows(IllegalArgumentException.class, () -> {

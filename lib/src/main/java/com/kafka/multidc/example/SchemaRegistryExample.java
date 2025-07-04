@@ -87,7 +87,8 @@ public class SchemaRegistryExample {
                     .priority(1)
                     .compressionType("snappy")
                     .enableIdempotence(true)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 KafkaDatacenterEndpoint.builder()
                     .id("schema-secondary")
                     .region("us-west-2")
@@ -95,8 +96,7 @@ public class SchemaRegistryExample {
                     .priority(2)
                     .compressionType("snappy")
                     .enableIdempotence(true)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("schema-primary")
             .routingStrategy(RoutingStrategy.PRIMARY_PREFERRED)
             .healthCheckInterval(Duration.ofSeconds(30))

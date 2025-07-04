@@ -75,7 +75,8 @@ public class ResilienceExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(20)
                     .minConnections(5)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 // Secondary datacenter for failover
                 KafkaDatacenterEndpoint.builder()
                     .id("resilient-secondary")
@@ -88,7 +89,8 @@ public class ResilienceExample {
                     .requestTimeout(Duration.ofSeconds(30))
                     .maxConnections(15)
                     .minConnections(3)
-                    .build(),
+                    .build())
+            .addDatacenter(
                 // Tertiary datacenter for disaster recovery
                 KafkaDatacenterEndpoint.builder()
                     .id("resilient-tertiary")
@@ -101,8 +103,7 @@ public class ResilienceExample {
                     .requestTimeout(Duration.ofSeconds(45))
                     .maxConnections(10)
                     .minConnections(2)
-                    .build()
-            ))
+                    .build())
             .localDatacenter("resilient-primary")
             .routingStrategy(RoutingStrategy.HEALTH_AWARE)
             .healthCheckInterval(Duration.ofSeconds(15))
